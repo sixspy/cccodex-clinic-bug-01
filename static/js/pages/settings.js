@@ -66,36 +66,11 @@ export async function renderSettings(el) {
   try {
     const dash = await api('/api/water_pin/dash');
     el.innerHTML += `<div class="card" style="margin-top:1rem">
-      <h3>水位钉定</h3>
-      <span class="chip">${dash.chip}</span>
-      <p class="muted">读轨 ${dash.active_read} · 切流指纹 ${dash.cutover_fp || '空'} · 拒回刷 ${dash.reject_refresh} · 归档 ${dash.archive_count} · 新旗 ${dash.live_flag || '空'} · 对齐差 ${dash.panel_pack_mismatch}</p>
-      <div class="row">
-        <button id="go_water_pin" type="button">落台</button>
-        <button id="half_water_pin" type="button">半修对齐</button>
-        <button id="cut_water_pin" type="button">切流账册</button>
-        <button id="dual_water_pin" type="button">双写两轨</button>
-      </div>
+      <h3>水位钉点（甲路·旁路账册）</h3>
+      <span class="chip ${dash.chip === '水位已亮' ? 'ok' : 'bad'}">${escapeHtml(dash.chip)}</span>
+      <p class="muted">窗止点 ${escapeHtml(dash.window_end || '窗止点旧')} · 读轨 ${escapeHtml(dash.active_read)} · 指纹 ${escapeHtml(dash.cutover_fp || '空')} · ${dash.reject_refresh ? '已封存拒回刷' : '未封存'} · 落点 ${dash.landing_count || 0} 条</p>
+      <p class="muted">钉定与名录已迁至「访视批次」页，此处只读展示真实口径。</p>
     </div>`;
-    const go = el.querySelector('#go_water_pin');
-    if (go) go.onclick = async () => {
-      await api('/api/water_pin/commit', { method:'POST', body: JSON.stringify({ref:1}) });
-      await renderSettings(el);
-    };
-    const half = el.querySelector('#half_water_pin');
-    if (half) half.onclick = async () => {
-      await api('/api/water_pin/half', { method:'POST', body:'{}' });
-      await renderSettings(el);
-    };
-    const cut = el.querySelector('#cut_water_pin');
-    if (cut) cut.onclick = async () => {
-      await api('/api/water_pin/cutover', { method:'POST', body: JSON.stringify({ref_id:1, note:'水位钉点'}) });
-      await renderSettings(el);
-    };
-    const dual = el.querySelector('#dual_water_pin');
-    if (dual) dual.onclick = async () => {
-      await api('/api/water_pin/dual', { method:'POST', body: JSON.stringify({note:'水位钉点'}) });
-      await renderSettings(el);
-    };
   } catch (e) { /* optional surface */ }
 
 }

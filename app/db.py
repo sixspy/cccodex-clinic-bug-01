@@ -97,6 +97,22 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS water_pin_marks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pin_key TEXT NOT NULL UNIQUE,
+  route TEXT NOT NULL DEFAULT 'cutover_book',
+  window_end TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  ref_id INTEGER NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT '已钉定',
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_water_pin_marks_active
+  ON water_pin_marks(is_active) WHERE is_active=1;
+
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,

@@ -16,8 +16,8 @@ export function chipClass(status) {
   if (['启用', '合格', '已入库', '成功', '生效', '已关闭'].includes(s) && s !== '已关闭') {
     if (['启用', '合格', '已入库', '成功', '生效'].includes(s)) return 'ok';
   }
-  if (['合格', '已入库', '成功', '生效', '启用'].includes(s)) return 'ok';
-  if (['停用', '失败', '严重', '编码空', '废止'].includes(s)) return 'bad';
+  if (['合格', '已入库', '成功', '生效', '启用', '水位已亮', '已钉定'].includes(s)) return 'ok';
+  if (['停用', '失败', '严重', '编码空', '废止', '窗止点旧'].includes(s)) return 'bad';
   if (['观察', '缺字段', '重复键', '待补采', '排队', '执行中', '开放', '草稿', '采集中'].includes(s)) return 'warn';
   return 'idle';
 }

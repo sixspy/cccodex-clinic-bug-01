@@ -17,7 +17,6 @@ from app.services import reconcile as reconcile_svc
 from app.services import settings as settings_svc
 from app.services import water_pin as water_pin_svc
 from app.services import water_pin_cutover as water_pin_cutover_svc
-from app.services import water_pin_dualwrite as water_pin_dual_svc
 from app.services import sites as sites_svc
 from app.services import visits as visits_svc
 from app.services.errors import ServiceError
@@ -453,14 +452,10 @@ class Api:
     @_wrap
     def water_pin_commit(self):
         _require()
+        if cherrypy.request.method != "POST":
+            return _json({"error": "方法不允许"}, 405)
         body = _read_json()
         return _json(water_pin_svc.commit_action(body))
-
-    @cherrypy.expose
-    @_wrap
-    def water_pin_half(self):
-        _require()
-        return _json(water_pin_svc.reconcile_display())
 
     @cherrypy.expose
     @_wrap
@@ -472,6 +467,8 @@ class Api:
     @_wrap
     def water_pin_cutover(self):
         _require()
+        if cherrypy.request.method != "POST":
+            return _json({"error": "方法不允许"}, 405)
         body = _read_json()
         return _json(
             water_pin_cutover_svc.append_cutover(
@@ -479,13 +476,6 @@ class Api:
                 str(body.get("note") or "水位钉定"),
             )
         )
-
-    @cherrypy.expose
-    @_wrap
-    def water_pin_dual(self):
-        _require()
-        body = _read_json()
-        return _json(water_pin_dual_svc.apply_dualwrite(str(body.get("note") or "水位钉定")))
 
     @cherrypy.expose
     @_wrap
@@ -577,14 +567,10 @@ class ApiMount:
                 return api.water_pin_dash()
             if action == "commit":
                 return api.water_pin_commit()
-            if action == "half":
-                return api.water_pin_half()
             if action == "snap":
                 return api.water_pin_snap()
             if action == "cutover":
                 return api.water_pin_cutover()
-            if action == "dual":
-                return api.water_pin_dual()
             return _json({"error": "未知水位钉定路由"}, 404)
 
         return _json({"error": f"未知接口 {path}"}, 404)

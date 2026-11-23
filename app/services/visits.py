@@ -276,9 +276,10 @@ def mock_crawl(
     mix_bad: bool = True,
     db_path: str | None = None,
 ) -> dict:
-    from app.services.water_pin import commit_action, gate_allows_pipeline
-    commit_action({"batch_id": batch_id, "count": count}, db_path)
-    _ = gate_allows_pipeline(db_path)
+    from app.services.water_pin import require_pipeline_allowed
+    # 水位钉点闸门：徽标与窗止点拧花（指纹不一致）时挡住旧窗重灌；
+    # 抓取本身不再回刷钉点状态，避免冲垮质控补采。
+    require_pipeline_allowed(db_path)
     count = max(1, min(30, int(count or 5)))
     created = []
     with get_db(db_path) as conn:

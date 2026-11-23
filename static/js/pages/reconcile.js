@@ -1,18 +1,18 @@
 import { api, chip, escapeHtml } from '../api.js';
 
-/* water_pin-board */
 export async function renderReconcile(el) {
-  const [dash, reports, matrix, audits] = await Promise.all([
+  const [dash, reports, matrix, audits, wp] = await Promise.all([
     api('/api/dashboard'),
     api('/api/reports'),
     api('/api/reports/matrix'),
     api('/api/audits?limit=30'),
+    api('/api/water_pin/dash'),
   ]);
 
   el.innerHTML = `
     <div class="card">
-      <h2><span class="chip" data-thick="water_pin">水位已亮</span> 访视对账台</h2>
-      <p class="muted">对照缺口行、开放质控发现与补采队列，找出无发现缺口、陈旧发现、未覆盖补采等不一致。</p>
+      <h2>${chip(wp.chip)} 访视对账台 <span class="muted">窗止点 ${escapeHtml(wp.window_end || '窗止点旧')}</span></h2>
+      <p class="muted">对照缺口行、开放质控发现与补采队列，找出无发现缺口、陈旧发现、未覆盖补采等不一致。读轨 ${escapeHtml(wp.active_read)} · 指纹 ${escapeHtml(wp.cutover_fp || '空')}</p>
       <div class="grid">
         <div class="stat"><div class="n">${dash.gaps}</div><div class="l">当前缺口行</div></div>
         <div class="stat"><div class="n">${dash.open_findings}</div><div class="l">开放发现</div></div>

@@ -1,18 +1,12 @@
-"""水位钉点读轨审计：汇总切流账册与双写两轨两侧引用。"""
+"""水位钉点读轨审计：汇总甲路旁路账册一侧引用（乙路骨架已拆除）。"""
 from __future__ import annotations
 
-from app.db import get_db
+from app.services.water_pin import list_events
 from app.services.water_pin_cutover import board as cutover_board
-from app.services.water_pin_dualwrite import dual_board, half_dual
 
 
 def audit_list(db_path: str | None = None) -> list[dict]:
-    with get_db(db_path) as conn:
-        rows = conn.execute(
-            "SELECT key, value FROM meta WHERE key LIKE ? ORDER BY key",
-            ("water_pin_evt_%",),
-        ).fetchall()
-        return [{"key": r["key"], "value": r["value"]} for r in rows]
+    return [{"key": e["key"], "value": e["note"]} for e in list_events(db_path)]
 
 
 def audit_summary(db_path: str | None = None) -> dict:
@@ -20,6 +14,4 @@ def audit_summary(db_path: str | None = None) -> dict:
         "title": "水位钉点审计",
         "events": audit_list(db_path),
         "cutover": cutover_board(db_path),
-        "dualwrite": dual_board(db_path),
-        "half": half_dual(db_path),
     }

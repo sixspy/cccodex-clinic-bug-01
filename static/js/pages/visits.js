@@ -1,10 +1,11 @@
 import { api, chip, escapeHtml } from '../api.js';
 
 export async function renderVisits(el) {
-  const [batches, sites, protocols] = await Promise.all([
+  const [batches, sites, protocols, wp] = await Promise.all([
     api('/api/batches'),
     api('/api/sites'),
     api('/api/protocols?status=' + encodeURIComponent('生效')),
+    api('/api/water_pin/dash'),
   ]);
   const siteOpts = (sites.items || [])
     .filter((s) => s.status !== '停用')
@@ -16,7 +17,7 @@ export async function renderVisits(el) {
 
   el.innerHTML = `
     <div class="card">
-      <h2><span class="chip" data-thick="water_pin">水位已亮</span> 访视清单抓取批次</h2>
+      <h2><span id="wpHeadChip">${chip(wp.chip)}</span> 访视清单抓取批次</h2>
       <p class="muted">按试验中心开批次，模拟抓取访视行，合格行可入库，缺口行进入质控与补采。</p>
       <div class="row">
         <select id="siteId">${siteOpts}</select>
@@ -24,6 +25,31 @@ export async function renderVisits(el) {
         <input id="bnote" placeholder="批次备注" />
         <button id="createBatch">开新批次</button>
       </div>
+    </div>
+    <div class="card" id="waterPinPanel">
+      <h2>水位钉点 <span class="muted">甲路·旁路账册</span></h2>
+      <p class="muted">提交即整笔写库；封存后读轨只认旁路账册并拒回刷，旧窗重灌一律被挡。</p>
+      <div id="wpBody"></div>
+      <div class="row">
+        <input id="wpRef" placeholder="关联批次ID（可空）" style="width:150px" />
+        <input id="wpNote" placeholder="钉定备注" value="水位钉定" />
+        <button id="wpCommit">钉定水位</button>
+      </div>
+      <div id="wpMsg" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>水位钉点名录</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>当场键</th><th>窗止点</th><th>指纹</th><th>状态</th><th>落点时间</th></tr>
+        </thead>
+        <tbody id="wpRows"></tbody>
+      </table>
+      <div id="wpDetail" class="detail-box">点击名录行查看水位钉点落点详情。</div>
+    </div>
+    <div class="card">
+      <h2>水位钉点队列形态</h2>
+      <div id="wpQueue" class="row"></div>
     </div>
     <div class="card">
       <div class="row">
@@ -74,6 +100,79 @@ export async function renderVisits(el) {
 
   const detail = el.querySelector('#batchDetail');
   const showErr = (msg) => { detail.innerHTML = `<p class="err">${escapeHtml(msg)}</p>`; };
+
+  function renderWaterPin(wp) {
+    el.querySelector('#wpHeadChip').innerHTML = chip(wp.chip);
+    const landing = wp.landing;
+    el.querySelector('#wpBody').innerHTML = `
+      <div class="grid">
+        <div class="stat"><div class="n">${escapeHtml(wp.chip)}</div><div class="l">水位徽标</div></div>
+        <div class="stat"><div class="n">${escapeHtml(wp.window_end || '窗止点旧')}</div><div class="l">窗止点</div></div>
+        <div class="stat"><div class="n">${escapeHtml(wp.active_read)}</div><div class="l">读轨</div></div>
+        <div class="stat"><div class="n">${wp.reject_refresh ? '拒回刷' : '未封存'}</div><div class="l">回刷闸门</div></div>
+      </div>
+      <div class="detail-box" id="wpLandingRow">水位钉点落点：${
+        landing
+          ? `${escapeHtml(landing.pin_key)} · 窗止点 ${escapeHtml(landing.window_end)} · 指纹 ${escapeHtml(landing.fingerprint)} · ${escapeHtml(landing.created_at || '')}`
+          : '暂无（未钉定）'
+      }</div>
+      ${wp.mismatch ? '<p class="err">水位徽标与窗止点拧花：指纹不一致，旧窗重灌已被闸门挡住。</p>' : ''}`;
+    const rows = wp.rows || [];
+    el.querySelector('#wpRows').innerHTML = rows.map((r) => `
+      <tr data-pin="${r.id}" style="cursor:pointer">
+        <td>${r.id}</td>
+        <td>${escapeHtml(r.pin_key)}</td>
+        <td>${escapeHtml(r.window_end)}</td>
+        <td class="muted">${escapeHtml(r.fingerprint)}</td>
+        <td>${chip(r.status)}</td>
+        <td class="muted">${escapeHtml(r.created_at || '')}</td>
+      </tr>`).join('') || '<tr><td colspan="6" class="muted">暂无水位钉点落点行</td></tr>';
+    el.querySelectorAll('[data-pin]').forEach((tr) => {
+      tr.onclick = () => {
+        const row = rows.find((x) => String(x.id) === tr.dataset.pin);
+        if (!row) return;
+        el.querySelector('#wpDetail').innerHTML = `
+          <strong>落点详情 #${row.id}</strong><br/>
+          当场键：${escapeHtml(row.pin_key)}<br/>
+          读轨账册：${escapeHtml(row.route)}<br/>
+          窗止点：${escapeHtml(row.window_end)}<br/>
+          指纹：${escapeHtml(row.fingerprint)}<br/>
+          关联：${escapeHtml(String(row.ref_id || '-'))} · 备注：${escapeHtml(row.note || '')}<br/>
+          状态：${escapeHtml(row.status)} · 落点时间：${escapeHtml(row.created_at || '')}`;
+      };
+    });
+    const queue = wp.queue || [];
+    el.querySelector('#wpQueue').innerHTML = queue.length
+      ? queue.map((q) => `
+        <span class="chip ${q.active ? 'ok' : 'idle'}" title="${escapeHtml(q.fingerprint)}">
+          ${q.seq}·${escapeHtml(q.pin_key)} → ${escapeHtml(q.stage)}
+        </span>`).join('')
+      : '<span class="muted">队列为空，尚未钉定。</span>';
+  }
+
+  async function reloadWaterPin() {
+    const wp = await api('/api/water_pin/dash');
+    renderWaterPin(wp);
+  }
+
+  el.querySelector('#wpCommit').onclick = async () => {
+    const msg = el.querySelector('#wpMsg');
+    try {
+      const body = { note: el.querySelector('#wpNote').value };
+      const ref = el.querySelector('#wpRef').value.trim();
+      if (ref) body.ref_id = Number(ref);
+      const r = await api('/api/water_pin/commit', { method: 'POST', body: JSON.stringify(body) });
+      msg.className = 'muted';
+      msg.textContent = r.message || '水位钉点已落台';
+      await reloadWaterPin();
+    } catch (e) {
+      msg.className = 'err';
+      msg.textContent = e.message;
+      await reloadWaterPin().catch(() => {});
+    }
+  };
+
+  renderWaterPin(wp);
 
   async function loadDetail(id) {
     const b = await api(`/api/batches/${id}`);
